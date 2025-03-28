@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emoji Search</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-4xl font-bold text-center mb-4">Emoji Search</h1>
+        
+        <!-- Tab Navigation -->
+        <div class="flex justify-center mb-8">
+            <button onclick="switchTab('search')" 
+                    class="px-4 py-2 mx-2 rounded-lg tab-button active" 
+                    id="search-tab">
+                Search Emojis
+            </button>
+            <button onclick="switchTab('categories')" 
+                    class="px-4 py-2 mx-2 rounded-lg tab-button" 
+                    id="categories-tab">
+                Browse Categories
+            </button>
+        </div>
+        
+        <!-- Search Tab -->
+        <div id="search-content" class="tab-content">
+            <div class="max-w-xl mx-auto">
+                <div class="flex gap-4 mb-8">
+                    <input 
+                        type="text" 
+                        id="searchInput" 
+                        placeholder="Search emojis..."
+                        class="flex-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                    <button 
+                        onclick="searchEmojis()"
+                        class="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    >
+                        Search
+                    </button>
+                </div>
+
+                <div id="results" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+                    <!-- Results will be populated here -->
+                </div>
+
+                <div id="loading" class="hidden text-center py-4">
+                    Searching...
+                </div>
+            </div>
+        </div>
+
+        <!-- Categories Tab -->
+        <div id="categories-content" class="tab-content hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {% for category in categories %}
+                <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                    <div class="p-4 border-b">
+                        <h3 class="text-lg font-semibold">{{ category.name }}</h3>
+                    </div>
+                    <div class="p-4">
+                        <div class="grid grid-cols-3 gap-2 mb-4 emoji-preview" id="preview-{{ category.id }}">
+                            <!-- Preview emojis will be loaded here -->
+                            <div class="animate-pulse bg-gray-200 w-16 h-16 rounded"></div>
+                            <div class="animate-pulse bg-gray-200 w-16 h-16 rounded"></div>
+                            <div class="animate-pulse bg-gray-200 w-16 h-16 rounded"></div>
+                        </div>
+                        <button onclick="loadCategory('{{ category.id }}')"
+                                class="w-full bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition-colors">
+                            View All
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- Modal -->
+        <div id="emojiModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center">
+            <div class="bg-white p-6 rounded-lg max-w-2xl w-full mx-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold" id="modalTitle">Emoji Details</h2>
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                    </button>
+                </div>
+                <div id="modalContent" class="space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add CSS for tabs -->
+    <style>
+        .tab-button {
+            @apply bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors;
+        }
+        .tab-button.active {
+            @apply bg-blue-500 text-white;
+        }
+    </style>
+
+    <script>
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+            });
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+            
+            document.getElementById(`${tabName}-content`).classList.remove('hidden');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+
+        // Load category preview
+        async function loadCategoryPreview(categoryId) {
+            try {
+                const response = await fetch(`/category/${categoryId}`);
+                const emojis = await response.json();
+                const preview = emojis.slice(0, 3);
+                
+                const previewContainer = document.getElementById(`preview-${categoryId}`);
+                previewContainer.innerHTML = preview.map(emoji => `
+                    <img src="${emoji.url}" 
+                         alt="${emoji.name}" 
+                         class="w-16 h-16 object-contain rounded bg-gray-50"
+                         title="${emoji.shortcode}">
+                `).join('');
+            } catch (error) {
+                console.error('Error loading category preview:', error);
+            }
+        }
+
+        // Load full category
+        async function loadCategory(categoryId) {
+            const modal = document.getElementById('emojiModal');
+            const content = document.getElementById('modalContent');
+            
+            try {
+                const response = await fetch(`/category/${categoryId}`);
+                const emojis = await response.json();
+                
+                content.innerHTML = `
+                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-4">
+                        ${emojis.map(emoji => `
+                            <div class="text-center">
+                                <img src="${emoji.url}" 
+                                     alt="${emoji.name}" 
+                                     class="w-20 h-20 object-contain mx-auto mb-2 rounded bg-gray-50">
+                                <p class="text-sm text-gray-600">${emoji.shortcode}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+                
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } catch (error) {
+                console.error('Error loading category:', error);
+            }
+        }
+
+        // Load previews when categories tab is shown
+        document.getElementById('categories-tab').addEventListener('click', () => {
+            {% for category in categories %}
+            loadCategoryPreview('{{ category.id }}');
+            {% endfor %}
+        });
+
+        async function searchEmojis() {
+            const query = document.getElementById('searchInput').value;
+            if (!query) return;
+
+            const loading = document.getElementById('loading');
+            const results = document.getElementById('results');
+
+            loading.classList.remove('hidden');
+            results.innerHTML = '';
+
+            try {
+                const response = await fetch(`/search/${encodeURIComponent(query)}`);
+                const emojis = await response.json();
+
+                results.innerHTML = emojis.map(emoji => `
+                    <div class="bg-white p-4 rounded-lg shadow hover:shadow-md transition-shadow cursor-pointer"
+                         onclick="showEmojiDetails('${encodeURIComponent(btoa(emoji.id))}')">
+                        <img src="${emoji.noBackgroundUrl}" alt="${emoji.prompt}" class="w-full h-32 object-contain mb-2">
+                        <p class="text-sm text-gray-600 text-center">${emoji.prompt}</p>
+                    </div>
+                `).join('');
+            } catch (error) {
+                results.innerHTML = '<p class="text-red-500">Error searching emojis</p>';
+            } finally {
+                loading.classList.add('hidden');
+            }
+        }
+
+        async function showEmojiDetails(emojiId) {
+            const modal = document.getElementById('emojiModal');
+            const content = document.getElementById('modalContent');
+            
+            try {
+                const response = await fetch(`/emoji/${emojiId}`);
+                const emoji = await response.json();
+                
+                content.innerHTML = `
+                    <div class="flex items-center space-x-4">
+                        <img src="${emoji.noBackgroundUrl540}" alt="${emoji.prompt}" class="w-48 h-48 object-contain">
+                        <div>
+                            <h3 class="text-xl font-bold">${emoji.prompt}</h3>
+                            ${emoji.user ? `
+                                <p class="text-gray-600">Created by: ${emoji.user.username}</p>
+                            ` : ''}
+                            <p class="text-gray-600">Votes: ${emoji.voteCount}</p>
+                            <div class="mt-2">
+                                <p class="text-gray-600 mb-1">Tags:</p>
+                                <div class="flex flex-wrap gap-2">
+                                    ${emoji.tags.map(tag => `
+                                        <span class="bg-gray-100 px-2 py-1 rounded-full text-sm text-gray-600">${tag}</span>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="flex gap-4 mb-2">
+                            <p class="text-sm text-gray-500">Status: ${emoji.status}</p>
+                            <p class="text-sm text-gray-500">Kind: ${emoji.kind}</p>
+                            <p class="text-sm text-gray-500">Visibility: ${emoji.visibility}</p>
+                        </div>
+                        <p class="text-sm text-gray-500">Created: ${new Date(emoji.createdAt).toLocaleDateString()}</p>
+                        ${emoji.complaint ? `
+                            <div class="mt-2 p-2 bg-red-50 rounded-lg">
+                                <p class="text-red-600">Complaint: ${emoji.complaint.reason}</p>
+                            </div>
+                        ` : ''}
+                    </div>
+                    <div class="mt-4 pt-4 border-t">
+                        <p class="text-xs text-gray-400">ID: ${emoji.id}</p>
+                    </div>
+                `;
+                
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            } catch (error) {
+                console.error('Error fetching emoji details:', error);
+            }
+        }
+
+        function closeModal() {
+            const modal = document.getElementById('emojiModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        // Allow searching with Enter key
+        document.getElementById('searchInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                searchEmojis();
+            }
+        });
+    </script>
+</body>
+</html> 

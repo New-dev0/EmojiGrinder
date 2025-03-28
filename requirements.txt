@@ -1,0 +1,11 @@
+fastapi==0.110.0
+uvicorn==0.27.1
+emoji==2.10.1
+pydantic==2.6.3
+pydantic-settings==2.2.1
+python-dotenv==1.0.1
+beautifulsoup4==4.12.3
+aiohttp==3.9.3
+redis==5.0.3
+aioredis==2.0.1
+lxml==5.1.0
